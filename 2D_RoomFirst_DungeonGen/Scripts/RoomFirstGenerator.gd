@@ -12,6 +12,7 @@ var room_attempts: int = 10 #maximum amount of times to try and create a room wh
 @export var max_room_size: int = 10
 @export var min_room_seperation: int = 1
 @onready var tilemap :TileMap = $TileMap
+@export var loop_amount: int = 2
 
 var path:AStar2D = AStar2D.new()
 
@@ -102,13 +103,14 @@ func create_MSP():
 		
 	path.add_point(path.get_available_point_id(), room_positions.pop_front())
 	
-	while !room_positions.is_empty():
+	var room_positions_dupe = room_positions.duplicate()
+	while !room_positions_dupe.is_empty():
 		var min_distance: float = INF
 		var current_poiont: Vector2
 		var min_dist_point: Vector2
 		for id in path.get_point_count():
 			var point1:Vector2 = path.get_point_position(id)
-			for point2:Vector2 in room_positions:
+			for point2:Vector2 in room_positions_dupe:
 				var dist: float = point1.distance_to(point2)
 				if dist < min_distance:
 					min_distance = dist
@@ -117,12 +119,31 @@ func create_MSP():
 		var new_id = path.get_available_point_id()
 		path.add_point(new_id, min_dist_point)
 		path.connect_points(path.get_closest_point(current_poiont), new_id)
-		room_positions.erase(min_dist_point)
+		room_positions_dupe.erase(min_dist_point)
+
+	# add loops into the MSP to make the dungeon path more interesting
+	for n in loop_amount:
+		var node_list:Array = path.get_point_ids()
+		var node1 = node_list.pick_random()
+		var node1_pos: Vector2 = path.get_point_position(node1)
+		var min_dist: float = INF
+		var min_dist_room: int
+		for node2_pos in room_positions:
+			#Get the point with minimum distance BUT not already connected
+			if node1_pos.distance_to(node2_pos) < min_dist && (node1_pos != node2_pos):
+				var node2 = path.get_closest_point(node2_pos)
+				if path.get_point_connections(node1).has(node2):
+					print("already connected!", node1, node2)
+				else:
+					min_dist = node1_pos.distance_to(node2_pos)
+					min_dist_room = node2
+					
+		if min_dist_room:
+			path.connect_points(node1, min_dist_room)
+			print("connected rooms:", node1, min_dist_room)
+		node_list.erase(node1)
 
 func _draw():
-	for room in room_list:
-		var room_pos:Vector2 = room.get_center()
-	
 	if path:
 		#for p in path.get_points():
 		for id in path.get_point_count():
@@ -132,5 +153,3 @@ func _draw():
 				var cp = path.get_point_position(c)
 				cp = tilemap.map_to_local(cp)
 				draw_line(Vector2(pp.x, pp.y),Vector2(cp.x, cp.y),Color(1, 1, 0, 1), 15, true)
-		print(path.get_point_count())
-		

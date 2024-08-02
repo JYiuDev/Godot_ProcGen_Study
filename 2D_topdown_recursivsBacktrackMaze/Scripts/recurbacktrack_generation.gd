@@ -86,7 +86,6 @@ func create_maze():
 			await get_tree().create_timer(0.01).timeout
 		else:
 			current_cell = stack.pop_back()
-	
 	random_remove_walls()
 
 
