@@ -27,10 +27,11 @@ func _ready():
 	generate_rooms(room_count)
 
 func _input(event):
+	#if enter is pressed, reload scene
 	if event.is_action_pressed("ui_accept"):
 		get_tree().reload_current_scene()
 
-func visualize_boundry():
+func visualize_boundry(): #Represent the boundry of the usable area with solid color tiles
 	var top_left:Vector2i = boundry.position
 	tilemap.set_cell(0, top_left, 0, dummy_tile)
 	var boundry_cells: PackedVector2Array
@@ -72,7 +73,7 @@ func generate_rooms(count: int):
 		var attempt_count: int = room_attempts
 		while !valid_space && (attempt_count > 0):
 			room_size = Vector2(randi_range(min_room_size, max_room_size), randi_range(min_room_size, max_room_size))
-			#Randomize the position(top right) of the room according to roomsize, make sure full room can be contained within boundry
+			#Randomize the position(top left) of the room according to roomsize, make sure full room can be contained within boundry
 			room_pos.x = randi_range(boundry.position.x + 1, boundry.position.x + boundry.size.x + 1 - room_size.x)
 			room_pos.y = randi_range(boundry.position.y + 1, boundry.position.y + boundry.size.y + 1 - room_size.y)
 			
@@ -86,7 +87,6 @@ func generate_rooms(count: int):
 						overlap = true
 				if !overlap:
 					valid_space = true
-					
 			attempt_count -= 1
 			
 		if valid_space:
@@ -101,7 +101,7 @@ func generate_rooms(count: int):
 			if path_ids_dupe.has(neighbour_id):
 				room_pos = path.get_point_position(room_id)
 				var neighbour_pos = path.get_point_position(neighbour_id)
-				print("room pos: ", room_pos, "neighbour pos: ", neighbour_pos)
+				#print("room pos: ", room_pos, "neighbour pos: ", neighbour_pos)
 				make_corridors(room_pos, neighbour_pos)
 		path_ids_dupe.erase(room_id)
 
@@ -132,12 +132,11 @@ func make_corridors(start: Vector2, end: Vector2):
 		corridor_cells.append(Vector2(pos2.x,y))
 	tilemap.set_cells_terrain_connect(0, corridor_cells,0,0)
 
-func create_MSP():
+func create_MSP(): #Create a min spanning tree with the position of rooms(Rect2) using primms algo
 	var room_positions: Array[Vector2]
 	for room in room_list:
 		room_positions.append(room.get_center())
-		tilemap.set_cell(0, room.get_center(), 0, dummy_tile)
-		
+		#tilemap.set_cell(0, room.get_center(), 0, dummy_tile)
 	path.add_point(path.get_available_point_id(), room_positions.pop_front())
 	
 	var room_positions_dupe = room_positions.duplicate()
@@ -158,9 +157,10 @@ func create_MSP():
 		path.connect_points(path.get_closest_point(current_poiont), new_id)
 		room_positions_dupe.erase(min_dist_point)
 
-	# add loops into the MSP to make the dungeon path more interesting
+	# randomly add loops into the MSP to make the dungeon path more interesting
+	# room will look for the second closest candidates to form loop
 	for n in loop_amount:
-		var node_list:Array = path.get_point_ids()
+		var node_list:Array[int] = path.get_point_ids()
 		var node1 = node_list.pick_random()
 		var node1_pos: Vector2 = path.get_point_position(node1)
 		var min_dist: float = INF
@@ -175,14 +175,13 @@ func create_MSP():
 					min_dist = node1_pos.distance_to(node2_pos)
 					min_dist_room = node2
 					
-		if min_dist_room:
+		if min_dist_room: #Connecting the astar nodes
 			path.connect_points(node1, min_dist_room)
 		node_list.erase(node1)
 		
 
 func _draw():
 	if path:
-		#for p in path.get_points():
 		for id in path.get_point_count():
 			for c in path.get_point_connections(id):
 				var pp = path.get_point_position(id)
