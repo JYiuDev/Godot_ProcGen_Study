@@ -25,7 +25,6 @@ func _ready():
 	#print(test_intersect.intersects(Rect2i(3,3,5,5)))
 	#make_room(Rect2i(boundry.position.x + boundry.size.x - 1,1,2,1))
 	generate_rooms(room_count)
-	create_MSP()
 
 func _input(event):
 	if event.is_action_pressed("ui_accept"):
@@ -49,20 +48,19 @@ func make_room(parameter: Rect2):
 	var wall_cells: Array[Vector2i]
 	
 	#set walls
-	for x in range(pos.x, pos.x + size.x):
-		for y in range(pos.y, pos.y + size.y):
-			#print(Vector2(x,y))
-			wall_cells.append(Vector2i(x,y))
-	tilemap.set_cells_terrain_connect(0, wall_cells, 1, 0)
+	#for x in range(pos.x, pos.x + size.x):
+		#for y in range(pos.y, pos.y + size.y):
+			##print(Vector2(x,y))
+			#wall_cells.append(Vector2i(x,y))
+	#tilemap.set_cells_terrain_connect(0, wall_cells, 1, 0)
 	#set ground tiles 
-	for x in range(pos.x + 1, pos.x + size.x - 1):
-		for y in range(pos.y + 1, pos.y + size.y - 1):
+	for x in range(pos.x + 1, pos.x + size.x - 1 + 1):
+		for y in range(pos.y + 1, pos.y + size.y - 1 + 1):
 			#print(Vector2(x,y))
 			room_cells.append(Vector2i(x,y))
 	tilemap.set_cells_terrain_connect(0, room_cells, 0, 0)
 	
 	room_list.append(parameter)
-	
 
 func generate_rooms(count: int):
 	room_list.clear()
@@ -90,10 +88,49 @@ func generate_rooms(count: int):
 					valid_space = true
 					
 			attempt_count -= 1
-		
+			
 		if valid_space:
 			make_room(Rect2(room_pos,room_size))
-	print("room count: ", room_count)
+	create_MSP()
+	
+	#Loop through generated path nodes and generate corridors according to connections
+	var path_ids_dupe:Array = path.get_point_ids().duplicate()
+	for room_id: int in path.get_point_ids():
+		#print(room_id, "connections: ", path.get_point_connections(room_id))
+		for neighbour_id: int in path.get_point_connections(room_id):
+			if path_ids_dupe.has(neighbour_id):
+				room_pos = path.get_point_position(room_id)
+				var neighbour_pos = path.get_point_position(neighbour_id)
+				print("room pos: ", room_pos, "neighbour pos: ", neighbour_pos)
+				make_corridors(room_pos, neighbour_pos)
+		path_ids_dupe.erase(room_id)
+
+
+func make_corridors(start: Vector2, end: Vector2):
+	var x_diff: int = sign(end.x - start.x)
+	var y_diff: int = sign(end.y - start.y)
+	
+	if x_diff == 0: x_diff = pow(-1, randi()% 2)
+	if y_diff == 0: y_diff = pow(-1, randi()% 2)
+	
+	#shuffle start/end position
+	var pos1:Vector2
+	var pos2:Vector2
+	if pow(-1, randi()% 2) > 0:
+		pos1 = start
+		pos2 = end
+	else:
+		pos1 = end
+		pos2 = start
+	
+	var corridor_cells:Array
+	for x in range(start.x, end.x, x_diff):
+		#tilemap.set_cell(0, Vector2(x,pos1.y), 0, dummy_tile)
+		corridor_cells.append(Vector2(x,pos1.y))
+	for y in range(start.y, end.y, y_diff):
+		#tilemap.set_cell(0, Vector2(pos2.x,y), 0, dummy_tile)
+		corridor_cells.append(Vector2(pos2.x,y))
+	tilemap.set_cells_terrain_connect(0, corridor_cells,0,0)
 
 func create_MSP():
 	var room_positions: Array[Vector2]
@@ -133,15 +170,15 @@ func create_MSP():
 			if node1_pos.distance_to(node2_pos) < min_dist && (node1_pos != node2_pos):
 				var node2 = path.get_closest_point(node2_pos)
 				if path.get_point_connections(node1).has(node2):
-					print("already connected!", node1, node2)
+					pass
 				else:
 					min_dist = node1_pos.distance_to(node2_pos)
 					min_dist_room = node2
 					
 		if min_dist_room:
 			path.connect_points(node1, min_dist_room)
-			print("connected rooms:", node1, min_dist_room)
 		node_list.erase(node1)
+		
 
 func _draw():
 	if path:
