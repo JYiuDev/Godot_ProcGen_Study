@@ -7,7 +7,7 @@ var room_list: Array[Rect2]
 
 var room_attempts: int = 10 #maximum amount of times to try and create a room when the previous did not fit
 
-@export var room_count: int = 10
+@export var room_count: int = 15
 @export var min_room_size: int = 5
 @export var max_room_size: int = 10
 @export var min_room_seperation: int = 1
@@ -15,6 +15,7 @@ var room_attempts: int = 10 #maximum amount of times to try and create a room wh
 @export var loop_amount: int = 2
 
 var path:AStar2D = AStar2D.new()
+var drawMSP: bool = false
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -25,11 +26,20 @@ func _ready():
 	#print(test_intersect.intersects(Rect2i(3,3,5,5)))
 	#make_room(Rect2i(boundry.position.x + boundry.size.x - 1,1,2,1))
 	generate_rooms(room_count)
-
+	
+	
 func _input(event):
 	#if enter is pressed, reload scene
 	if event.is_action_pressed("ui_accept"):
 		get_tree().reload_current_scene()
+	if event.is_action_pressed("ui_down"):
+		drawMSP = false
+	
+func _process(delta):
+	if(drawMSP):
+		queue_redraw()
+	else:
+		draw
 
 func visualize_boundry(): #Represent the boundry of the usable area with solid color tiles
 	var top_left:Vector2i = boundry.position
@@ -91,6 +101,7 @@ func generate_rooms(count: int):
 			
 		if valid_space:
 			make_room(Rect2(room_pos,room_size))
+			await get_tree().create_timer(0.1).timeout
 	create_MSP()
 	
 	#Loop through generated path nodes and generate corridors according to connections
@@ -103,8 +114,9 @@ func generate_rooms(count: int):
 				var neighbour_pos = path.get_point_position(neighbour_id)
 				#print("room pos: ", room_pos, "neighbour pos: ", neighbour_pos)
 				make_corridors(room_pos, neighbour_pos)
+				await get_tree().create_timer(0.1).timeout
 		path_ids_dupe.erase(room_id)
-
+	drawMSP = false
 
 func make_corridors(start: Vector2, end: Vector2):
 	var x_diff: int = sign(end.x - start.x)
@@ -131,8 +143,9 @@ func make_corridors(start: Vector2, end: Vector2):
 		#tilemap.set_cell(0, Vector2(pos2.x,y), 0, dummy_tile)
 		corridor_cells.append(Vector2(pos2.x,y))
 	tilemap.set_cells_terrain_connect(0, corridor_cells,0,0)
-
+	
 func create_MSP(): #Create a min spanning tree with the position of rooms(Rect2) using primms algo
+	drawMSP = true
 	var room_positions: Array[Vector2]
 	for room in room_list:
 		room_positions.append(room.get_center())
@@ -156,11 +169,10 @@ func create_MSP(): #Create a min spanning tree with the position of rooms(Rect2)
 		path.add_point(new_id, min_dist_point)
 		path.connect_points(path.get_closest_point(current_poiont), new_id)
 		room_positions_dupe.erase(min_dist_point)
-
 	# randomly add loops into the MSP to make the dungeon path more interesting
 	# room will look for the second closest candidates to form loop
 	for n in loop_amount:
-		var node_list:Array[int] = path.get_point_ids()
+		var node_list:Array = path.get_point_ids()
 		var node1 = node_list.pick_random()
 		var node1_pos: Vector2 = path.get_point_position(node1)
 		var min_dist: float = INF
@@ -178,10 +190,9 @@ func create_MSP(): #Create a min spanning tree with the position of rooms(Rect2)
 		if min_dist_room: #Connecting the astar nodes
 			path.connect_points(node1, min_dist_room)
 		node_list.erase(node1)
-		
 
 func _draw():
-	if path:
+	if path && drawMSP:
 		for id in path.get_point_count():
 			for c in path.get_point_connections(id):
 				var pp = path.get_point_position(id)
