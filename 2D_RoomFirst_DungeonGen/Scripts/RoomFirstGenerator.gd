@@ -4,6 +4,7 @@ var boundry: Rect2i = Rect2i(-1,-1,70,39)
 var dummy_tile: Vector2 = Vector2(0, 3)
 var grid_tile: Vector2i = Vector2(9, 6)
 var room_list: Array[Rect2]
+var based: Basis
 
 var room_attempts: int = 10 #maximum amount of times to try and create a room when the previous did not fit
 
