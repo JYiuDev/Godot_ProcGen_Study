@@ -201,3 +201,7 @@ func _draw():
 				var cp = path.get_point_position(c)
 				cp = tilemap.map_to_local(cp)
 				draw_line(Vector2(pp.x, pp.y),Vector2(cp.x, cp.y),Color(1, 1, 0, 1), 15, true)
+
+func print_nearby_cells(query_cell: Vector2):
+	pass
+	
