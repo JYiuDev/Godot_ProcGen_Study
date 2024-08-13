@@ -27,14 +27,12 @@ func _ready():
 	#print(test_intersect.intersects(Rect2i(3,3,5,5)))
 	#make_room(Rect2i(boundry.position.x + boundry.size.x - 1,1,2,1))
 	generate_rooms(room_count)
-	
+	print_nearby_cells_test(Vector2(1,1))
 	
 func _input(event):
 	#if enter is pressed, reload scene
 	if event.is_action_pressed("ui_accept"):
 		get_tree().reload_current_scene()
-	if event.is_action_pressed("ui_down"):
-		drawMSP = false
 	
 func _process(delta):
 	if(drawMSP):
@@ -60,18 +58,19 @@ func make_room(parameter: Rect2):
 	var wall_cells: Array[Vector2i]
 	
 	#set walls
-	#for x in range(pos.x, pos.x + size.x):
-		#for y in range(pos.y, pos.y + size.y):
-			##print(Vector2(x,y))
-			#wall_cells.append(Vector2i(x,y))
-	#tilemap.set_cells_terrain_connect(0, wall_cells, 1, 0)
+	for x in range(pos.x, pos.x + size.x):
+		for y in range(pos.y, pos.y + size.y):
+			#print(Vector2(x,y))
+			wall_cells.append(Vector2i(x,y))
+	
 	#set ground tiles 
-	for x in range(pos.x + 1, pos.x + size.x - 1 + 1):
-		for y in range(pos.y + 1, pos.y + size.y - 1 + 1):
+	for x in range(pos.x + 1, pos.x + size.x - 1 ):
+		for y in range(pos.y + 1, pos.y + size.y - 1 ):
 			#print(Vector2(x,y))
 			room_cells.append(Vector2i(x,y))
-	tilemap.set_cells_terrain_connect(0, room_cells, 0, 0)
 	
+	tilemap.set_cells_terrain_connect(0, wall_cells, 1, 0)
+	tilemap.set_cells_terrain_connect(0, room_cells, 0, 0)
 	room_list.append(parameter)
 
 func generate_rooms(count: int):
@@ -140,6 +139,7 @@ func make_corridors(start: Vector2, end: Vector2):
 	for x in range(start.x, end.x, x_diff):
 		#tilemap.set_cell(0, Vector2(x,pos1.y), 0, dummy_tile)
 		corridor_cells.append(Vector2(x,pos1.y))
+		print_nearby_cells(Vector2(x, pos1.y))
 	for y in range(start.y, end.y, y_diff):
 		#tilemap.set_cell(0, Vector2(pos2.x,y), 0, dummy_tile)
 		corridor_cells.append(Vector2(pos2.x,y))
@@ -170,6 +170,8 @@ func create_MSP(): #Create a min spanning tree with the position of rooms(Rect2)
 		path.add_point(new_id, min_dist_point)
 		path.connect_points(path.get_closest_point(current_poiont), new_id)
 		room_positions_dupe.erase(min_dist_point)
+		
+		
 	# randomly add loops into the MSP to make the dungeon path more interesting
 	# room will look for the second closest candidates to form loop
 	for n in loop_amount:
@@ -203,5 +205,21 @@ func _draw():
 				draw_line(Vector2(pp.x, pp.y),Vector2(cp.x, cp.y),Color(1, 1, 0, 1), 15, true)
 
 func print_nearby_cells(query_cell: Vector2):
-	pass
-	
+	var neighbour_array: Array[Vector2] = [Vector2(-1, -1), Vector2(1, 0)]
+	#Order of neighbour tiles
+	#	0 1 2
+	#	7 # 3
+	#	6 5 4
+	for n in neighbour_array:
+		var cell_data = tilemap.get_cell_atlas_coords(0, query_cell + n)
+		print(cell_data)
+
+func print_nearby_cells_test(query_cell: Vector2):
+	var i: Array[int] = [-1, 0, 1, 1, 1, 0, -1. -1]
+	var j: Array[int] = [-1, -1, -1, 0, 1, 1, 1, 0]
+	#Order of neighbour tiles
+	#	0 1 2
+	#	7 # 3
+	#	6 5 4
+	for n in i.size():
+		print(Vector2(i[n], j[n]))
