@@ -5,6 +5,8 @@ var dummy_tile: Vector2 = Vector2(0, 3)
 var grid_tile: Vector2i = Vector2(9, 6)
 var room_list: Array[Rect2]
 var based: Basis
+var all_walls: Array[Vector2i]
+var corr_walls: Array[Vector2i]
 
 var room_attempts: int = 10 #maximum amount of times to try and create a room when the previous did not fit
 
@@ -56,21 +58,22 @@ func make_room(parameter: Rect2):
 	var size: Vector2i = parameter.size
 	var room_cells: Array[Vector2i]
 	var wall_cells: Array[Vector2i]
-	
 	#set walls
 	for x in range(pos.x, pos.x + size.x):
 		for y in range(pos.y, pos.y + size.y):
 			#print(Vector2(x,y))
 			wall_cells.append(Vector2i(x,y))
+			all_walls.append(Vector2i(x,y))
+	tilemap.set_cells_terrain_connect(0, wall_cells, 1, 0)
+
 	
 	#set ground tiles 
 	for x in range(pos.x + 1, pos.x + size.x - 1 ):
 		for y in range(pos.y + 1, pos.y + size.y - 1 ):
 			#print(Vector2(x,y))
 			room_cells.append(Vector2i(x,y))
-	
-	tilemap.set_cells_terrain_connect(0, wall_cells, 1, 0)
 	tilemap.set_cells_terrain_connect(0, room_cells, 0, 0)
+	
 	room_list.append(parameter)
 
 func generate_rooms(count: int):
@@ -143,6 +146,7 @@ func make_corridors(start: Vector2, end: Vector2):
 	for y in range(start.y, end.y, y_diff):
 		#tilemap.set_cell(0, Vector2(pos2.x,y), 0, dummy_tile)
 		corridor_cells.append(Vector2(pos2.x,y))
+		print_nearby_cells(Vector2(pos2.x,y))
 	tilemap.set_cells_terrain_connect(0, corridor_cells,0,0)
 	
 func create_MSP(): #Create a min spanning tree with the position of rooms(Rect2) using primms algo
@@ -204,18 +208,27 @@ func _draw():
 				cp = tilemap.map_to_local(cp)
 				draw_line(Vector2(pp.x, pp.y),Vector2(cp.x, cp.y),Color(1, 1, 0, 1), 15, true)
 
-func print_nearby_cells(query_cell: Vector2):
-	var neighbour_array: Array[Vector2] = [Vector2(-1, -1), Vector2(1, 0)]
+func print_nearby_cells(query_cell: Vector2i):
+	var i: Array[int] = [-1, 0, 1, 1, 1, 0, -1, -1]
+	var j: Array[int] = [-1, -1, -1, 0, 1, 1, 1, 0]
 	#Order of neighbour tiles
 	#	0 1 2
 	#	7 # 3
 	#	6 5 4
-	for n in neighbour_array:
-		var cell_data = tilemap.get_cell_atlas_coords(0, query_cell + n)
-		print(cell_data)
+	for n in i.size():
+		var neighbour_cell:Vector2i = query_cell + Vector2i(i[n],j[n])
+		var cell_atlas = tilemap.get_cell_atlas_coords(0, neighbour_cell)
+		if cell_atlas == Vector2i(-1,-1):
+			#print(cell_atlas)
+			if !corr_walls.has(neighbour_cell):
+				corr_walls.append(neighbour_cell)
+				tilemap.set_cell(0, neighbour_cell, 0, dummy_tile)
+	
+	all_walls.append_array(corr_walls)
+	tilemap.set_cells_terrain_connect(0, all_walls, 1, 0)
 
 func print_nearby_cells_test(query_cell: Vector2):
-	var i: Array[int] = [-1, 0, 1, 1, 1, 0, -1. -1]
+	var i: Array[int] = [-1, 0, 1, 1, 1, 0, -1, -1]
 	var j: Array[int] = [-1, -1, -1, 0, 1, 1, 1, 0]
 	#Order of neighbour tiles
 	#	0 1 2
@@ -223,3 +236,4 @@ func print_nearby_cells_test(query_cell: Vector2):
 	#	6 5 4
 	for n in i.size():
 		print(Vector2(i[n], j[n]))
+		
