@@ -1,12 +1,14 @@
 extends Node2D
 
+const DUMMY_WALLS = Vector2(0,3)
+const DUMMY_ROOM  = Vector2(0,0)
+
 var boundry: Rect2i = Rect2i(-1,-1,70,39)
-var dummy_tile: Vector2 = Vector2(0, 3)
 var grid_tile: Vector2i = Vector2(9, 6)
 var room_list: Array[Rect2]
 var based: Basis
-var all_walls: Array[Vector2i]
-var corr_walls: Array[Vector2i]
+var wall_cells: Array[Vector2i]
+var room_cells: Array[Vector2i]
 
 var room_attempts: int = 10 #maximum amount of times to try and create a room when the previous did not fit
 
@@ -18,53 +20,43 @@ var room_attempts: int = 10 #maximum amount of times to try and create a room wh
 @export var loop_amount: int = 2
 
 var path:AStar2D = AStar2D.new()
-var drawMSP: bool = false
+var drawMSP: bool = true
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	visualize_boundry()
-	#make_room(Rect2i(3,3,5,5))
-	#make_room(Rect2i(7,3,5,5))
-	#var test_intersect:Rect2i = Rect2i(7,3,5,5)
-	#print(test_intersect.intersects(Rect2i(3,3,5,5)))
-	#make_room(Rect2i(boundry.position.x + boundry.size.x - 1,1,2,1))
 	generate_rooms(room_count)
-	print_nearby_cells_test(Vector2(1,1))
+	
+	tilemap.set_cells_terrain_connect(0, wall_cells, 1, 0)
+	tilemap.set_cells_terrain_connect(0, room_cells, 0, 0)
 	
 func _input(event):
 	#if enter is pressed, reload scene
 	if event.is_action_pressed("ui_accept"):
 		get_tree().reload_current_scene()
-	
-func _process(delta):
-	if(drawMSP):
-		queue_redraw()
-	else:
-		draw
-
+		
 func visualize_boundry(): #Represent the boundry of the usable area with solid color tiles
 	var top_left:Vector2i = boundry.position
-	tilemap.set_cell(0, top_left, 0, dummy_tile)
+	tilemap.set_cell(0, top_left, 0, DUMMY_WALLS)
 	var boundry_cells: PackedVector2Array
 	for x in range(top_left.x, (top_left.x + boundry.size.x + 2), boundry.size.x + 1):
 		for y in range(top_left.y, (top_left.y + boundry.size.y + 2)):
-			tilemap.set_cell(0, Vector2(x,y), 0, dummy_tile)
+			tilemap.set_cell(0, Vector2(x,y), 0, DUMMY_WALLS)
 	for x in range(top_left.x, (top_left.x + boundry.size.x + 2)):
 		for y in range(top_left.y, (top_left.y + boundry.size.y + 2), boundry.size.y + 1):
-			tilemap.set_cell(0, Vector2(x,y), 0, dummy_tile)
+			tilemap.set_cell(0, Vector2(x,y), 0, DUMMY_WALLS)
 
 func make_room(parameter: Rect2):
 	var pos: Vector2i = parameter.position
 	var size: Vector2i = parameter.size
-	var room_cells: Array[Vector2i]
-	var wall_cells: Array[Vector2i]
+
 	#set walls
 	for x in range(pos.x, pos.x + size.x):
 		for y in range(pos.y, pos.y + size.y):
 			#print(Vector2(x,y))
 			wall_cells.append(Vector2i(x,y))
-			all_walls.append(Vector2i(x,y))
-	tilemap.set_cells_terrain_connect(0, wall_cells, 1, 0)
+			tilemap.set_cell(0, Vector2i(x,y), 0, DUMMY_WALLS)
+	#tilemap.set_cells_terrain_connect(0, wall_cells, 1, 0)
 
 	
 	#set ground tiles 
@@ -72,7 +64,8 @@ func make_room(parameter: Rect2):
 		for y in range(pos.y + 1, pos.y + size.y - 1 ):
 			#print(Vector2(x,y))
 			room_cells.append(Vector2i(x,y))
-	tilemap.set_cells_terrain_connect(0, room_cells, 0, 0)
+			tilemap.set_cell(0, Vector2i(x,y), 0, DUMMY_ROOM)
+	#tilemap.set_cells_terrain_connect(0, room_cells, 0, 0)
 	
 	room_list.append(parameter)
 
@@ -104,7 +97,7 @@ func generate_rooms(count: int):
 			
 		if valid_space:
 			make_room(Rect2(room_pos,room_size))
-			await get_tree().create_timer(0.1).timeout
+			#await get_tree().create_timer(0.1).timeout
 	create_MSP()
 	
 	#Loop through generated path nodes and generate corridors according to connections
@@ -117,7 +110,7 @@ func generate_rooms(count: int):
 				var neighbour_pos = path.get_point_position(neighbour_id)
 				#print("room pos: ", room_pos, "neighbour pos: ", neighbour_pos)
 				make_corridors(room_pos, neighbour_pos)
-				await get_tree().create_timer(0.1).timeout
+				#await get_tree().create_timer(0.1).timeout
 		path_ids_dupe.erase(room_id)
 	drawMSP = false
 
@@ -140,21 +133,26 @@ func make_corridors(start: Vector2, end: Vector2):
 	
 	var corridor_cells:Array
 	for x in range(start.x, end.x, x_diff):
-		#tilemap.set_cell(0, Vector2(x,pos1.y), 0, dummy_tile)
-		corridor_cells.append(Vector2(x,pos1.y))
-		print_nearby_cells(Vector2(x, pos1.y))
+		#tilemap.set_cell(0, Vector2(x,pos1.y), 0, DUMMY_WALLS)
+		var cell = Vector2i(x,pos1.y)
+		if !room_cells.has(cell):
+			room_cells.append(cell)
+			tilemap.set_cell(0, cell, 0, DUMMY_ROOM)
+			fill_neighbour_walls(Vector2(x, pos1.y))
 	for y in range(start.y, end.y, y_diff):
-		#tilemap.set_cell(0, Vector2(pos2.x,y), 0, dummy_tile)
-		corridor_cells.append(Vector2(pos2.x,y))
-		print_nearby_cells(Vector2(pos2.x,y))
-	tilemap.set_cells_terrain_connect(0, corridor_cells,0,0)
+		var cell = Vector2i(pos2.x,y)
+		#tilemap.set_cell(0, Vector2(pos2.x,y), 0, DUMMY_WALLS)
+		room_cells.append(cell)
+		tilemap.set_cell(0, cell, 0, DUMMY_ROOM)
+		fill_neighbour_walls(Vector2(pos2.x,y))
+	#tilemap.set_cells_terrain_connect(0, corridor_cells,0,0)
 	
 func create_MSP(): #Create a min spanning tree with the position of rooms(Rect2) using primms algo
 	drawMSP = true
 	var room_positions: Array[Vector2]
 	for room in room_list:
 		room_positions.append(room.get_center())
-		#tilemap.set_cell(0, room.get_center(), 0, dummy_tile)
+		#tilemap.set_cell(0, room.get_center(), 0, DUMMY_WALLS)
 	path.add_point(path.get_available_point_id(), room_positions.pop_front())
 	
 	var room_positions_dupe = room_positions.duplicate()
@@ -208,7 +206,7 @@ func _draw():
 				cp = tilemap.map_to_local(cp)
 				draw_line(Vector2(pp.x, pp.y),Vector2(cp.x, cp.y),Color(1, 1, 0, 1), 15, true)
 
-func print_nearby_cells(query_cell: Vector2i):
+func fill_neighbour_walls(query_cell: Vector2i):
 	var i: Array[int] = [-1, 0, 1, 1, 1, 0, -1, -1]
 	var j: Array[int] = [-1, -1, -1, 0, 1, 1, 1, 0]
 	#Order of neighbour tiles
@@ -219,13 +217,10 @@ func print_nearby_cells(query_cell: Vector2i):
 		var neighbour_cell:Vector2i = query_cell + Vector2i(i[n],j[n])
 		var cell_atlas = tilemap.get_cell_atlas_coords(0, neighbour_cell)
 		if cell_atlas == Vector2i(-1,-1):
-			#print(cell_atlas)
-			if !corr_walls.has(neighbour_cell):
-				corr_walls.append(neighbour_cell)
-				tilemap.set_cell(0, neighbour_cell, 0, dummy_tile)
-	
-	all_walls.append_array(corr_walls)
-	tilemap.set_cells_terrain_connect(0, all_walls, 1, 0)
+			if !wall_cells.has(neighbour_cell):
+				wall_cells.append(neighbour_cell)
+				tilemap.set_cell(0, neighbour_cell, 0, DUMMY_WALLS)
+
 
 func print_nearby_cells_test(query_cell: Vector2):
 	var i: Array[int] = [-1, 0, 1, 1, 1, 0, -1, -1]
