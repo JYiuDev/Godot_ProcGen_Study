@@ -4,5 +4,5 @@ Goal of this personal project is to implement various procgen algorithms in orde
 ## Recrusive Backtrack Maze
 <img src="gifs/procgen_backtrack_maze.gif" width="60%" height="60%"/>
 
-## Recrusive Backtrack Maze
+## Roomfirst Maze Generation
 <img src="gifs/room_first_maze.gif" width="60%" height="60%"/>
